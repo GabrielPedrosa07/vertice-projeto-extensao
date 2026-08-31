@@ -1,0 +1,135 @@
+-- ============================================================================
+-- PLATAFORMA VÉRTICE - BANCO DE DADOS RELACIONAL (MYSQL 8.0+)
+-- Projeto de Extensão III - Análise e Desenvolvimento de Sistemas (FASM)
+-- PHP Puro + PDO + MySQL
+-- Integrantes: Gabriel Pedrosa, Guilherme Victor, Iuri Schelbi, João Carlos
+-- Orientador: Prof. Aldecir de Almeida Fonseca
+-- ============================================================================
+
+CREATE DATABASE IF NOT EXISTS `vertice_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `vertice_db`;
+
+-- 1. TABELA DE USUÁRIOS
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL UNIQUE,
+    `phone` VARCHAR(20) DEFAULT NULL,
+    `password` VARCHAR(255) NOT NULL,
+    `role` ENUM('admin', 'moderator', 'student') NOT NULL DEFAULT 'student',
+    `avatar_url` VARCHAR(255) DEFAULT NULL,
+    `bio` TEXT DEFAULT NULL,
+    `remember_token` VARCHAR(100) DEFAULT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. TABELA DE CATEGORIAS / DISCIPLINAS
+CREATE TABLE IF NOT EXISTS `categories` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL,
+    `slug` VARCHAR(100) NOT NULL UNIQUE,
+    `description` TEXT DEFAULT NULL,
+    `color` VARCHAR(7) DEFAULT '#5b6abf',
+    `icon` VARCHAR(50) DEFAULT '📚',
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. TABELA DE CANAIS / SALAS DE CONVERSA EM TEMPO REAL
+CREATE TABLE IF NOT EXISTS `channels` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `category_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(100) NOT NULL,
+    `slug` VARCHAR(100) NOT NULL,
+    `description` TEXT DEFAULT NULL,
+    `is_private` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` BIGINT UNSIGNED DEFAULT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. TABELA DE MENSAGENS
+CREATE TABLE IF NOT EXISTS `messages` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `channel_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `content` TEXT NOT NULL,
+    `is_code_block` TINYINT(1) NOT NULL DEFAULT 0,
+    `code_language` VARCHAR(50) DEFAULT NULL,
+    `parent_id` BIGINT UNSIGNED DEFAULT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`channel_id`) REFERENCES `channels` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`parent_id`) REFERENCES `messages` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. TABELA DE MEMBROS DA COMUNIDADE
+CREATE TABLE IF NOT EXISTS `community_members` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `category_id` BIGINT UNSIGNED NOT NULL,
+    `role` ENUM('member', 'moderator', 'admin') DEFAULT 'member',
+    `joined_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `unique_user_community` (`user_id`, `category_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 6. TABELA DE TÓPICOS DO FÓRUM Q&A
+CREATE TABLE IF NOT EXISTS `topics` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `category_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `slug` VARCHAR(255) NOT NULL,
+    `content` LONGTEXT NOT NULL,
+    `is_resolved` TINYINT(1) NOT NULL DEFAULT 0,
+    `views_count` INT UNSIGNED NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. TABELA DE RESPOSTAS DO FÓRUM
+CREATE TABLE IF NOT EXISTS `replies` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `topic_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `content` LONGTEXT NOT NULL,
+    `is_solution` TINYINT(1) NOT NULL DEFAULT 0,
+    `votes_count` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. TABELA DE ANEXOS / MATERIAIS DE ESTUDO (POLIMÓRFICA)
+CREATE TABLE IF NOT EXISTS `attachments` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `attachable_type` VARCHAR(100) NOT NULL,
+    `attachable_id` BIGINT UNSIGNED NOT NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `file_name` VARCHAR(255) NOT NULL,
+    `file_path` VARCHAR(255) NOT NULL,
+    `file_type` VARCHAR(50) NOT NULL,
+    `file_size` INT UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9. TABELA DE LOGS DE MODERAÇÃO
+CREATE TABLE IF NOT EXISTS `moderation_logs` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `moderator_id` BIGINT UNSIGNED NOT NULL,
+    `action` VARCHAR(50) NOT NULL,
+    `target_type` VARCHAR(100) NOT NULL,
+    `target_id` BIGINT UNSIGNED NOT NULL,
+    `reason` TEXT DEFAULT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`moderator_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

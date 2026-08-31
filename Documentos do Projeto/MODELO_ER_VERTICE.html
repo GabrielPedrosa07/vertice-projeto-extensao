@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo Entidade-Relacionamento — Vértice</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif; background: #0a0e1a; color: #c8d0e0;
+            line-height: 1.7; padding: 40px 24px;
+        }
+        .container { max-width: 960px; margin: 0 auto; }
+
+        .cabecalho {
+            text-align: center; margin-bottom: 40px;
+            padding-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .cabecalho h1 { font-size: 32px; font-weight: 800; color: #eef1f8; margin-bottom: 6px; }
+        .cabecalho p { font-size: 14px; color: #6b7a99; }
+
+        .caixa {
+            background: rgba(16,24,48,0.7); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 36px; margin-bottom: 28px;
+        }
+        h2 {
+            font-size: 20px; color: #eef1f8; margin: 24px 0 12px;
+            padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        h2:first-child { margin-top: 0; }
+        h3 { color: #4ecdc4; font-size: 16px; margin-top: 20px; margin-bottom: 6px; }
+        p { margin-bottom: 12px; }
+        ul { padding-left: 22px; margin-bottom: 16px; }
+        li { margin-bottom: 5px; }
+        code {
+            background: rgba(91,106,191,0.12); color: #b0bce8; padding: 2px 7px;
+            border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+        }
+        strong { color: #eef1f8; }
+
+        .diagrama {
+            background: #050a18; border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px; padding: 20px; overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+            color: #d0d8e8; white-space: pre; line-height: 1.5; margin: 16px 0;
+        }
+        .codigo {
+            background: #050a18; border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px; padding: 18px; overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+            color: #d0d8e8; white-space: pre; line-height: 1.55; margin: 16px 0;
+        }
+
+        .rodape-doc {
+            text-align: center; margin-top: 36px; padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px; color: #6b7a99;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="cabecalho">
+        <h1>Modelo Entidade-Relacionamento</h1>
+        <p>Vértice — Projeto de Extensão Universitária III | ADS — FASM | MySQL 8 / PHP Puro (PDO)</p>
+    </div>
+
+    <div class="caixa">
+        <h2>Diagrama de relacionamento</h2>
+        <p>
+            O banco de dados do Vértice possui 8 tabelas inter-relacionadas. A estrutura foi montada pra suportar chat em tempo real, fórum de perguntas e respostas, repositório de arquivos e um sistema auditável de moderação.
+        </p>
+
+        <div class="diagrama">
++-----------------+       1:N       +-----------------+       1:N       +-----------------+
+|   categories    |────────────────>|    channels     |────────────────>|    messages     |
+| (Disciplinas)   |                 | (Salas de chat) |                 | (Tempo real)    |
++-----------------+                 +-----------------+                 +-----------------+
+         |                                                                       |
+         | 1:N                                                                   | N:1
+         v                                                                       v
++-----------------+       1:N       +-----------------+                 +-----------------+
+|     topics      |────────────────>|     replies     |                 |   attachments   |
+|   (Fórum Q&A)   |                 |  (Respostas)    |                 | (Anexos/PDFs)   |
++-----------------+                 +-----------------+                 +-----------------+
+         ^                                   ^                                   ^
+         |                                   |                                   |
+         +-------------------+───────────────+───────────────────────────────────+
+                             |
+                            N:1
+                    +-----------------+          +-----------------+
+                    |      users      |─────────>| moderation_logs |
+                    | (Alunos / Adm)  |   1:N    | (Auditoria)     |
+                    +-----------------+          +-----------------+</div>
+    </div>
+
+    <div class="caixa">
+        <h2>Detalhamento das tabelas</h2>
+
+        <h3>users</h3>
+        <p>Cadastro de alunos, monitores e administradores. Senhas criptografadas com Bcrypt.</p>
+        <ul>
+            <li><code>id</code> — BigInt, chave primária auto-increment</li>
+            <li><code>name</code> — Nome completo do usuário</li>
+            <li><code>email</code> — Único no sistema, usado no login</li>
+            <li><code>phone</code> — Telefone de contato (opcional)</li>
+            <li><code>password</code> — Hash Bcrypt da senha</li>
+            <li><code>role</code> — Enum: <code>admin</code>, <code>moderator</code> ou <code>student</code></li>
+            <li><code>avatar_url</code> — Caminho da foto de perfil (nullable)</li>
+            <li><code>created_at</code>, <code>updated_at</code> — Timestamps automáticos do Laravel</li>
+        </ul>
+
+        <h3>categories</h3>
+        <p>Representa as disciplinas do curso (Banco de Dados, Redes, POO etc.).</p>
+        <ul>
+            <li><code>id</code>, <code>name</code>, <code>slug</code>, <code>description</code></li>
+            <li><code>color</code> — Cor hexadecimal pra identificar visualmente a disciplina</li>
+        </ul>
+
+        <h3>channels</h3>
+        <p>Salas de conversa vinculadas a uma disciplina. Cada categoria pode ter N canais.</p>
+        <ul>
+            <li><code>id</code>, <code>name</code>, <code>description</code></li>
+            <li><code>category_id</code> — FK → <code>categories.id</code> (CASCADE)</li>
+            <li><code>is_private</code> — Se o canal é restrito a moderadores</li>
+        </ul>
+
+        <h3>messages</h3>
+        <p>Mensagens de chat em tempo real enviadas dentro de um canal.</p>
+        <ul>
+            <li><code>channel_id</code> — FK → <code>channels.id</code> (CASCADE)</li>
+            <li><code>user_id</code> — FK → <code>users.id</code> (CASCADE)</li>
+            <li><code>content</code> — Corpo da mensagem (TEXT)</li>
+            <li><code>is_code_block</code> — Se é um bloco de código</li>
+            <li><code>code_language</code> — Linguagem do código (nullable)</li>
+            <li><code>parent_id</code> — FK → <code>messages.id</code> (SET NULL) para respostas encadeadas</li>
+        </ul>
+
+        <h3>topics</h3>
+        <p>Perguntas do fórum de dúvidas. Vinculados a uma categoria.</p>
+        <ul>
+            <li><code>title</code>, <code>body</code> — Título e corpo da pergunta</li>
+            <li><code>category_id</code> — FK → <code>categories.id</code></li>
+            <li><code>user_id</code> — FK → <code>users.id</code></li>
+            <li><code>is_solved</code> — Se a dúvida já foi resolvida</li>
+        </ul>
+
+        <h3>replies</h3>
+        <p>Respostas a tópicos do fórum.</p>
+        <ul>
+            <li><code>topic_id</code> — FK → <code>topics.id</code> (CASCADE)</li>
+            <li><code>user_id</code> — FK → <code>users.id</code></li>
+            <li><code>body</code> — Corpo da resposta (TEXT)</li>
+            <li><code>is_solution</code> — Se foi marcada como solução aceita pelo autor da pergunta</li>
+        </ul>
+
+        <h3>attachments</h3>
+        <p>Tabela polimórfica pra anexos. Pode estar ligada a mensagens, tópicos ou respostas.</p>
+        <ul>
+            <li><code>attachable_type</code> — Classe do modelo (App\Models\Message, Topic ou Reply)</li>
+            <li><code>attachable_id</code> — ID do registro associado</li>
+            <li><code>file_path</code>, <code>file_name</code>, <code>mime_type</code>, <code>size_bytes</code></li>
+        </ul>
+
+        <h3>moderation_logs</h3>
+        <p>Registro de toda ação administrativa. Essa tabela é a base do nosso sistema de moderação transparente.</p>
+        <ul>
+            <li><code>moderator_id</code> — FK → <code>users.id</code> (quem tomou a ação)</li>
+            <li><code>target_user_id</code> — FK → <code>users.id</code> (quem foi afetado)</li>
+            <li><code>action</code> — Enum: <code>hide_message</code>, <code>delete_topic</code>, <code>suspend_user</code>, <code>warn_user</code></li>
+            <li><code>reason</code> — Justificativa por escrito (obrigatória)</li>
+            <li><code>details</code> — JSON com dados extras (nullable)</li>
+        </ul>
+    </div>
+
+    <div class="caixa">
+        <h2>Exemplo de DDL (Tabela messages)</h2>
+        <p>Abaixo está a definição da tabela <code>messages</code> em SQL puro, utilizada com conexão PDO no PHP:</p>
+        <div class="codigo">
+CREATE TABLE messages (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    channel_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    content TEXT NOT NULL,
+    is_code_block TINYINT(1) DEFAULT 0,
+    code_language VARCHAR(50) DEFAULT NULL,
+    parent_id BIGINT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES messages(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;</div>
+
+        <h2>Script DDL completo</h2>
+        <p>O script SQL completo pra criação do banco está no arquivo <code>banco_de_dados/schema_vertice.sql</code>.</p>
+    </div>
+
+    <div class="rodape-doc">
+        Vértice — Projeto de Extensão Universitária III<br>
+        Gabriel Pedrosa · Guilherme Victor · Iuri Schelbi · João Carlos<br>
+        Orientador: Prof. Aldecir de Almeida Fonseca — ADS / FASM
+    </div>
+</div>
+
+</body>
+</html>

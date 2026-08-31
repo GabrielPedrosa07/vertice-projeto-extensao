@@ -1,0 +1,22 @@
+# Ignorar arquivos de sistema e ambientes locais
+.env
+.DS_Store
+Thumbs.db
+*.log
+*.sqlite
+/banco_de_dados/*.sqlite
+
+# Diretórios de IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Backups e temporários
+*.bak
+*.tmp
+*.zip
+!Documentos\ do\ Projeto/Modelo_ER_e_Views.zip
