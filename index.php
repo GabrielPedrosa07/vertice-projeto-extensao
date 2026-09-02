@@ -40,6 +40,7 @@ use App\Controllers\HomeController;
 use App\Controllers\AuthController;
 use App\Controllers\HubController;
 use App\Controllers\CommunityController;
+use App\Controllers\ApiController;
 
 // Inicia sessão
 Session::start();
@@ -52,6 +53,78 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $uri = rtrim($uri, '/');
 if (empty($uri)) {
     $uri = '/';
+}
+
+// ----------------------------------------------------
+// Rotas de API (JSON: Chat, Uploads, Presença e WebRTC)
+// ----------------------------------------------------
+if ($uri === '/api/mensagens') {
+    if ($method === 'GET') {
+        (new ApiController())->getMessages();
+    } elseif ($method === 'POST') {
+        (new ApiController())->sendMessage();
+    }
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/mensagens/upload') {
+    (new ApiController())->uploadFile();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/mensagens/deletar') {
+    (new ApiController())->deleteMessage();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/online') {
+    (new ApiController())->getOnlineUsers();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/call/join') {
+    (new ApiController())->joinCall();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/call/heartbeat') {
+    (new ApiController())->heartbeatCall();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/call/leave') {
+    (new ApiController())->leaveCall();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/call/signal') {
+    (new ApiController())->sendCallSignal();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/call/signals') {
+    (new ApiController())->getCallSignals();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/call/peers') {
+    (new ApiController())->getCallPeers();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/call/remote-control/event') {
+    (new ApiController())->postRemoteControlEvent();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/call/remote-control/events') {
+    (new ApiController())->getRemoteControlEvents();
+    exit;
+}
+
+if ($method === 'GET' && ($uri === '/download/remote-agent' || $uri === '/api/download/remote-agent')) {
+    (new ApiController())->downloadRemoteAgent();
+    exit;
 }
 
 // ----------------------------------------------------

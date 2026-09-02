@@ -17,7 +17,7 @@ $erroMsg = Session::getFlash('erro');
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/public/css/style.css">
 </head>
-<body>
+<body data-user-id="<?= $loggedUser['id'] ?? 0 ?>" data-user-name="<?= htmlspecialchars($loggedUser['name'] ?? '') ?>" data-user-role="<?= htmlspecialchars($loggedUser['role'] ?? '') ?>">
 
     <div class="efeito-luz-1"></div>
     <div class="efeito-luz-2"></div>
