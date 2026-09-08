@@ -204,27 +204,53 @@ class ApiController
 
     public function getOnlineUsers(): void
     {
-        $this->getAuthUser();
+        $user = $this->getAuthUser();
         $channelId = (int)($_GET['canal'] ?? 0);
 
         $db = Database::getConnection();
         try {
-            $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-            if ($driver === 'mysql') {
-                $db->exec("DELETE FROM online_users WHERE last_seen < DATE_SUB(NOW(), INTERVAL 30 SECOND)");
+            $isSqlite = Database::isSqlite();
+
+            // 1. Registra o heartbeat do usuário atual
+            if ($user && isset($user['id'])) {
+                if ($isSqlite) {
+                    $stmtHeartbeat = $db->prepare("
+                        INSERT INTO online_users (user_id, channel_id, last_seen)
+                        VALUES (:uid, :cid, datetime('now'))
+                        ON CONFLICT(user_id) DO UPDATE SET channel_id = :cid2, last_seen = datetime('now')
+                    ");
+                } else {
+                    $stmtHeartbeat = $db->prepare("
+                        INSERT INTO online_users (user_id, channel_id, last_seen)
+                        VALUES (:uid, :cid, NOW())
+                        ON DUPLICATE KEY UPDATE channel_id = :cid2, last_seen = NOW()
+                    ");
+                }
+                $stmtHeartbeat->execute([
+                    'uid' => $user['id'],
+                    'cid' => $channelId > 0 ? $channelId : null,
+                    'cid2' => $channelId > 0 ? $channelId : null
+                ]);
+            }
+
+            // 2. Limpeza de inativos (> 60 segundos)
+            if ($isSqlite) {
+                $db->exec("DELETE FROM online_users WHERE last_seen < datetime('now', '-60 seconds')");
                 $stmt = $db->prepare("
-                    SELECT u.id, u.name, u.role, u.avatar_url, ou.channel_id
+                    SELECT u.id, u.name, u.email, u.role, u.avatar_url, ou.channel_id
                     FROM online_users ou
                     INNER JOIN users u ON ou.user_id = u.id
-                    WHERE ou.last_seen >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
+                    WHERE ou.last_seen >= datetime('now', '-60 seconds')
+                    ORDER BY u.name ASC
                 ");
             } else {
-                $db->exec("DELETE FROM online_users WHERE last_seen < datetime('now', '-30 seconds')");
+                $db->exec("DELETE FROM online_users WHERE last_seen < DATE_SUB(NOW(), INTERVAL 60 SECOND)");
                 $stmt = $db->prepare("
-                    SELECT u.id, u.name, u.role, u.avatar_url, ou.channel_id
+                    SELECT u.id, u.name, u.email, u.role, u.avatar_url, ou.channel_id
                     FROM online_users ou
                     INNER JOIN users u ON ou.user_id = u.id
-                    WHERE ou.last_seen >= datetime('now', '-30 seconds')
+                    WHERE ou.last_seen >= DATE_SUB(NOW(), INTERVAL 60 SECOND)
+                    ORDER BY u.name ASC
                 ");
             }
 
@@ -316,6 +342,23 @@ class ApiController
         CallSignal::sendSignal($channelId, $user['id'], $receiverId, $type, $payload);
 
         $this->jsonResponse(['status' => 'success']);
+    }
+
+    public function getCallSignals(): void
+    {
+        $user = $this->getAuthUser();
+        $channelId = (int)($_GET['channel_id'] ?? $_GET['canal'] ?? 0);
+
+        if ($channelId <= 0) {
+            $this->jsonResponse(['error' => 'Canal inválido.'], 400);
+        }
+
+        $signals = CallSignal::getSignals($channelId, $user['id']);
+
+        $this->jsonResponse([
+            'status'  => 'success',
+            'signals' => $signals
+        ]);
     }
 
     public function getCallPeers(): void

@@ -51,6 +51,11 @@ class Database
         return self::$instance;
     }
 
+    public static function isSqlite(): bool
+    {
+        return self::getConnection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+    }
+
     public static function initializeMysqlTables(PDO $pdo): void
     {
         try {
@@ -94,12 +99,154 @@ class Database
                     `payload` LONGTEXT NOT NULL,
                     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `channel_code_files` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `channel_id` BIGINT UNSIGNED NOT NULL,
+                    `filename` VARCHAR(100) NOT NULL DEFAULT 'main.php',
+                    `language` VARCHAR(50) NOT NULL DEFAULT 'php',
+                    `content` LONGTEXT NOT NULL,
+                    `updated_by_user_id` BIGINT UNSIGNED DEFAULT NULL,
+                    `updated_by_name` VARCHAR(100) DEFAULT NULL,
+                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY `unique_channel_code` (`channel_id`, `filename`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `channel_whiteboard_shapes` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `channel_id` BIGINT UNSIGNED NOT NULL,
+                    `user_id` BIGINT UNSIGNED DEFAULT NULL,
+                    `user_name` VARCHAR(100) DEFAULT NULL,
+                    `shape_data` LONGTEXT NOT NULL,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `forum_questions` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `category_id` BIGINT UNSIGNED NOT NULL,
+                    `user_id` BIGINT UNSIGNED NOT NULL,
+                    `user_name` VARCHAR(100) NOT NULL,
+                    `title` VARCHAR(255) NOT NULL,
+                    `content` LONGTEXT NOT NULL,
+                    `tags` VARCHAR(255) DEFAULT '',
+                    `is_resolved` TINYINT(1) DEFAULT 0,
+                    `solved_answer_id` BIGINT UNSIGNED DEFAULT NULL,
+                    `views` INT DEFAULT 0,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `forum_answers` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `question_id` BIGINT UNSIGNED NOT NULL,
+                    `user_id` BIGINT UNSIGNED NOT NULL,
+                    `user_name` VARCHAR(100) NOT NULL,
+                    `user_role` VARCHAR(50) DEFAULT 'student',
+                    `content` LONGTEXT NOT NULL,
+                    `is_solution` TINYINT(1) DEFAULT 0,
+                    `upvotes` INT DEFAULT 0,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `forum_votes` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `answer_id` BIGINT UNSIGNED NOT NULL,
+                    `user_id` BIGINT UNSIGNED NOT NULL,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY `unique_answer_vote` (`answer_id`, `user_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `user_karma` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `user_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+                    `points` INT DEFAULT 0,
+                    `badge_title` VARCHAR(100) DEFAULT 'Iniciante Curioso',
+                    `solutions_count` INT DEFAULT 0,
+                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `quizzes` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `category_id` BIGINT UNSIGNED NOT NULL,
+                    `title` VARCHAR(150) NOT NULL,
+                    `description` TEXT,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `quiz_questions` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `quiz_id` BIGINT UNSIGNED NOT NULL,
+                    `question_text` TEXT NOT NULL,
+                    `options_json` LONGTEXT NOT NULL,
+                    `correct_index` INT NOT NULL,
+                    `explanation` TEXT
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `quiz_attempts` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `quiz_id` BIGINT UNSIGNED NOT NULL,
+                    `user_id` BIGINT UNSIGNED NOT NULL,
+                    `user_name` VARCHAR(100) NOT NULL,
+                    `score` INT NOT NULL,
+                    `total_questions` INT NOT NULL,
+                    `time_taken_seconds` INT DEFAULT 0,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `friendships` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `user_id` BIGINT UNSIGNED NOT NULL,
+                    `friend_id` BIGINT UNSIGNED NOT NULL,
+                    `status` ENUM('pending', 'accepted', 'declined') NOT NULL DEFAULT 'pending',
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY `unique_friendship` (`user_id`, `friend_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `private_messages` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `sender_id` BIGINT UNSIGNED NOT NULL,
+                    `receiver_id` BIGINT UNSIGNED NOT NULL,
+                    `content` LONGTEXT NOT NULL,
+                    `is_code_block` TINYINT(1) DEFAULT 0,
+                    `code_language` VARCHAR(50) DEFAULT NULL,
+                    `attachment_url` VARCHAR(255) DEFAULT NULL,
+                    `attachment_name` VARCHAR(255) DEFAULT NULL,
+                    `attachment_type` VARCHAR(50) DEFAULT NULL,
+                    `is_read` TINYINT(1) DEFAULT 0,
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `private_call_signals` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `caller_id` BIGINT UNSIGNED NOT NULL,
+                    `caller_name` VARCHAR(100) NOT NULL,
+                    `receiver_id` BIGINT UNSIGNED NOT NULL,
+                    `room_id` VARCHAR(100) NOT NULL,
+                    `status` VARCHAR(20) NOT NULL DEFAULT 'calling',
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+                CREATE TABLE IF NOT EXISTS `community_invites` (
+                    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    `sender_id` BIGINT UNSIGNED NOT NULL,
+                    `sender_name` VARCHAR(100) NOT NULL,
+                    `receiver_id` BIGINT UNSIGNED NOT NULL,
+                    `category_id` BIGINT UNSIGNED NOT NULL,
+                    `category_name` VARCHAR(100) NOT NULL,
+                    `category_slug` VARCHAR(100) NOT NULL,
+                    `channel_id` BIGINT UNSIGNED NOT NULL,
+                    `channel_name` VARCHAR(100) NOT NULL,
+                    `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
 
-            // Verifica colunas de anexo
+            // Verifica colunas de anexo e criador de comunidade
             try { $pdo->exec("ALTER TABLE `messages` ADD COLUMN `attachment_url` VARCHAR(255) DEFAULT NULL"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `messages` ADD COLUMN `attachment_name` VARCHAR(255) DEFAULT NULL"); } catch (\Throwable $e) {}
             try { $pdo->exec("ALTER TABLE `messages` ADD COLUMN `attachment_type` VARCHAR(50) DEFAULT NULL"); } catch (\Throwable $e) {}
+            try { $pdo->exec("ALTER TABLE `categories` ADD COLUMN `creator_id` BIGINT UNSIGNED DEFAULT NULL"); } catch (\Throwable $e) {}
         } catch (\Throwable $e) {}
     }
 
@@ -221,6 +368,147 @@ class Database
                 payload TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS channel_code_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id INTEGER NOT NULL,
+                filename TEXT NOT NULL DEFAULT 'main.php',
+                language TEXT NOT NULL DEFAULT 'php',
+                content TEXT NOT NULL,
+                updated_by_user_id INTEGER,
+                updated_by_name TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (channel_id, filename)
+            );
+
+            CREATE TABLE IF NOT EXISTS channel_whiteboard_shapes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id INTEGER NOT NULL,
+                user_id INTEGER,
+                user_name TEXT,
+                shape_data TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS forum_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                user_name TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                tags TEXT DEFAULT '',
+                is_resolved INTEGER DEFAULT 0,
+                solved_answer_id INTEGER DEFAULT NULL,
+                views INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS forum_answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                user_name TEXT NOT NULL,
+                user_role TEXT DEFAULT 'student',
+                content TEXT NOT NULL,
+                is_solution INTEGER DEFAULT 0,
+                upvotes INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS forum_votes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                answer_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (answer_id, user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_karma (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                points INTEGER DEFAULT 0,
+                badge_title TEXT DEFAULT 'Iniciante Curioso',
+                solutions_count INTEGER DEFAULT 0,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS quizzes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS quiz_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quiz_id INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                options_json TEXT NOT NULL,
+                correct_index INTEGER NOT NULL,
+                explanation TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS quiz_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quiz_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                user_name TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                total_questions INTEGER NOT NULL,
+                time_taken_seconds INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS friendships (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                friend_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (user_id, friend_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS private_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_id INTEGER NOT NULL,
+                receiver_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                is_code_block INTEGER DEFAULT 0,
+                code_language TEXT DEFAULT NULL,
+                attachment_url TEXT DEFAULT NULL,
+                attachment_name TEXT DEFAULT NULL,
+                attachment_type TEXT DEFAULT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS private_call_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                caller_id INTEGER NOT NULL,
+                caller_name TEXT NOT NULL,
+                receiver_id INTEGER NOT NULL,
+                room_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'calling',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS community_invites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_id INTEGER NOT NULL,
+                sender_name TEXT NOT NULL,
+                receiver_id INTEGER NOT NULL,
+                category_id INTEGER NOT NULL,
+                category_name TEXT NOT NULL,
+                category_slug TEXT NOT NULL,
+                channel_id INTEGER NOT NULL,
+                channel_name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         ");
 
         // Atualiza colunas na tabela messages se não existirem
@@ -232,6 +520,9 @@ class Database
         } catch (\Throwable $e) {}
         try {
             $pdo->exec("ALTER TABLE messages ADD COLUMN attachment_type TEXT");
+        } catch (\Throwable $e) {}
+        try {
+            $pdo->exec("ALTER TABLE categories ADD COLUMN creator_id INTEGER DEFAULT NULL");
         } catch (\Throwable $e) {}
 
         // Seed inicial caso esteja vazio

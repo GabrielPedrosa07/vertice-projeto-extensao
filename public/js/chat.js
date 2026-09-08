@@ -208,11 +208,15 @@
             }
         }
 
+        const uId = msg.user_id;
+        const uName = escapeHtml(msg.user_name || 'Colega');
+        const uRole = escapeHtml(msg.user_role || 'student');
+
         div.innerHTML = `
-            <div class="msg-avatar">${escapeHtml(initials)}</div>
+            <div class="msg-avatar user-popover-trigger" data-user-id="${uId}" data-user-name="${uName}" data-user-role="${uRole}" style="cursor:pointer;" title="Ver perfil de ${uName}">${escapeHtml(initials)}</div>
             <div class="msg-corpo">
                 <div class="msg-topo">
-                    <span class="msg-autor">${escapeHtml(msg.user_name)}</span>
+                    <span class="msg-autor user-popover-trigger" data-user-id="${uId}" data-user-name="${uName}" data-user-role="${uRole}" style="cursor:pointer; text-decoration: underline dotted;" title="Ver perfil de ${uName}">${uName}</span>
                     ${roleBadge}
                     <span class="msg-hora">${formatTime(msg.created_at)}</span>
                     <div class="msg-acoes-wrap">${deleteBtn}</div>
@@ -303,7 +307,7 @@
             const initials = escapeHtml((u.name || 'U').substring(0, 2).toUpperCase());
             const roleBadge = u.role === 'admin' ? '<span class="badge-role-mini">Admin</span>' : '';
             return `
-                <li class="online-user-item">
+                <li class="online-user-item user-popover-trigger user-clickable" data-user-id="${u.id}" data-user-name="${escapeHtml(u.name)}" data-user-role="${escapeHtml(u.role || 'student')}" style="cursor:pointer;" title="Ver perfil e adicionar aos amigos">
                     <span class="online-status-dot"></span>
                     <div class="online-avatar">${initials}</div>
                     <span class="online-nome">${escapeHtml(u.name)}</span>

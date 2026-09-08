@@ -52,5 +52,10 @@
         </div>
     </footer>
 
+    <!-- Notificação e Sinalização Global de Chamadas Privadas e Convites -->
+    <script src="/public/js/private_call_global.js"></script>
+    <script src="/public/js/notifications.js"></script>
+    <script src="/public/js/gamification.js"></script>
+
 </body>
 </html>

@@ -8,6 +8,8 @@
 
 declare(strict_types=1);
 
+date_default_timezone_set('America/Sao_Paulo');
+
 // Servidor embutido do PHP: servir arquivos estáticos diretamente
 if (php_sapi_name() === 'cli-server') {
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -41,6 +43,9 @@ use App\Controllers\AuthController;
 use App\Controllers\HubController;
 use App\Controllers\CommunityController;
 use App\Controllers\ApiController;
+use App\Controllers\StudyToolsController;
+use App\Controllers\AcademicEngagementController;
+use App\Controllers\PrivateChatController;
 
 // Inicia sessão
 Session::start();
@@ -125,6 +130,213 @@ if ($method === 'GET' && $uri === '/api/call/remote-control/events') {
 if ($method === 'GET' && ($uri === '/download/remote-agent' || $uri === '/api/download/remote-agent')) {
     (new ApiController())->downloadRemoteAgent();
     exit;
+}
+
+// ----------------------------------------------------
+// Rotas de Ferramentas de Estudo (Live Code, SQL & Whiteboard)
+// ----------------------------------------------------
+if ($method === 'GET' && $uri === '/api/tools/code/get') {
+    (new StudyToolsController())->getCode();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/tools/code/save') {
+    (new StudyToolsController())->saveCode();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/tools/code/run') {
+    (new StudyToolsController())->runCode();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/tools/sql/execute') {
+    (new StudyToolsController())->executeSql();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/tools/sql/schema') {
+    (new StudyToolsController())->getSqlSchema();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/tools/sql/reset') {
+    (new StudyToolsController())->resetSql();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/tools/whiteboard/get') {
+    (new StudyToolsController())->getWhiteboard();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/tools/whiteboard/save') {
+    (new StudyToolsController())->saveWhiteboardShape();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/tools/whiteboard/clear') {
+    (new StudyToolsController())->clearWhiteboard();
+    exit;
+}
+
+// ----------------------------------------------------
+// Rotas de Gamificação, Fórum Q&A e Quizzes (Pilar 2)
+// ----------------------------------------------------
+if ($method === 'GET' && $uri === '/api/forum/questions') {
+    (new AcademicEngagementController())->listQuestions();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/forum/question') {
+    (new AcademicEngagementController())->getQuestion();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/forum/question/create') {
+    (new AcademicEngagementController())->createQuestion();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/forum/answer/create') {
+    (new AcademicEngagementController())->createAnswer();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/forum/answer/mark-solution') {
+    (new AcademicEngagementController())->markSolution();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/forum/answer/vote') {
+    (new AcademicEngagementController())->voteAnswer();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/gamification/leaderboard') {
+    (new AcademicEngagementController())->getLeaderboard();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/gamification/my-stats') {
+    (new AcademicEngagementController())->getMyStats();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/api/quiz/list') {
+    (new AcademicEngagementController())->listQuizzes();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/quiz/get') {
+    (new AcademicEngagementController())->getQuiz();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/quiz/submit') {
+    (new AcademicEngagementController())->submitQuiz();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/quiz/leaderboard') {
+    (new AcademicEngagementController())->getQuizLeaderboard();
+    exit;
+}
+
+// ----------------------------------------------------
+// Rotas de Mensagens Privadas, Amigos e Chamadas 1x1
+// ----------------------------------------------------
+if ($method === 'GET' && $uri === '/privado') {
+    (new PrivateChatController())->index();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/friends') {
+    (new PrivateChatController())->getFriends();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/friends/pending') {
+    (new PrivateChatController())->getPendingRequests();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/friends/request') {
+    (new PrivateChatController())->sendFriendRequest();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/friends/accept') {
+    (new PrivateChatController())->acceptFriendRequest();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/friends/decline') {
+    (new PrivateChatController())->declineFriendRequest();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/friends/remove') {
+    (new PrivateChatController())->removeFriend();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/users/search') {
+    (new PrivateChatController())->searchUsers();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/conversations') {
+    (new PrivateChatController())->getConversations();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/messages') {
+    (new PrivateChatController())->getMessages();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/messages/send') {
+    (new PrivateChatController())->sendMessage();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/call/start') {
+    (new PrivateChatController())->startCall();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/call/check') {
+    (new PrivateChatController())->checkCall();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/call/respond') {
+    (new PrivateChatController())->respondCall();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/call/end') {
+    (new PrivateChatController())->endCall();
+    exit;
+}
+if ($method === 'POST' && $uri === '/api/private/invite/send') {
+    (new PrivateChatController())->sendCommunityInvite();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/private/invites') {
+    (new PrivateChatController())->getCommunityInvites();
+    exit;
+}
+if ($method === 'GET' && $uri === '/api/notifications/check') {
+    (new PrivateChatController())->checkNotifications();
+    exit;
+}
+
+if ($method === 'POST' && $uri === '/api/communities/create') {
+    (new CommunityController())->createCommunity();
+    exit;
+}
+
+if ($method === 'GET' && $uri === '/download/configurar-chrome') {
+    $file = __DIR__ . '/public/downloads/configurar_chrome_vertice.bat';
+    if (file_exists($file)) {
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="configurar_chrome_vertice.bat"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+        readfile($file);
+        exit;
+    }
+}
+
+if ($method === 'GET' && $uri === '/download/configurar-chrome-ps1') {
+    $file = __DIR__ . '/public/downloads/configurar_chrome_vertice.ps1';
+    if (file_exists($file)) {
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="configurar_chrome_vertice.ps1"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file));
+        readfile($file);
+        exit;
+    }
 }
 
 // ----------------------------------------------------

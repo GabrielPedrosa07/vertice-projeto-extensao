@@ -69,6 +69,7 @@
     const peerVolumes = new Map();
     // Mapa de Peers: peerUserId -> { pc, userName, remoteStream, pendingCandidates }
     const peerConnections = new Map();
+    const knownPeersMap = new Map();
     let signalingInterval = null;
 
     // ── Verificação de Contexto Seguro (Secure Context / HTTPS / Localhost) ──
@@ -131,15 +132,26 @@
             tile = document.createElement('div');
             tile.id = 'local-video-tile';
             tile.className = 'video-tile video-tile-local animate-fade-in';
+            tile.setAttribute('ondblclick', "window.fullscreenTile('local-video-tile')");
             tile.innerHTML = `
                 <video id="local-video" autoplay muted playsinline></video>
                 <div id="local-avatar-placeholder" class="tile-avatar-placeholder" style="display:none;">
                     <div class="tile-avatar-circle">${escapeHtml(currentUserName.substring(0, 2).toUpperCase())}</div>
                     <span class="tile-avatar-desc">Câmera Desligada</span>
                 </div>
-                <div class="video-tile-badge-screen" id="local-screen-badge" style="display:none;">🖥️ Tela Compartilhada</div>
+                <div class="video-tile-badge-screen" id="local-screen-badge" style="display:none;">🖥️ Sua Tela</div>
                 <div class="tile-hand-badge" id="local-hand-badge" style="display:none;">✋ Mão Levantada</div>
                 <div class="reactions-container" id="local-reactions-container"></div>
+                
+                <div class="tile-top-actions">
+                    <button type="button" class="btn-tile-action btn-tile-fullscreen" title="Tela Cheia do Monitor (F11)" onclick="window.fullscreenTile('local-video-tile')">
+                        <span>⤢</span> Tela Cheia
+                    </button>
+                    <button type="button" class="btn-tile-action btn-tile-focus" title="Fixar / Desafixar na grade" onclick="window.toggleTileFocus('local-video-tile')">
+                        <span>⛶</span> Fixar
+                    </button>
+                </div>
+
                 <div class="video-tile-info">
                     <span class="video-tile-name">${escapeHtml(currentUserName)} (Você)</span>
                     <span class="video-tile-status">
@@ -147,7 +159,6 @@
                         <span id="local-cam-icon">📹</span>
                     </span>
                 </div>
-                <button type="button" class="btn-tile-focus" title="Fixar na tela principal" onclick="window.toggleTileFocus('local-video-tile')">⛶</button>
             `;
             videoGrid.appendChild(tile);
         }
@@ -421,14 +432,28 @@
                 callParticipantsCount.textContent = `${total} ${total === 1 ? 'pessoa' : 'pessoas'} na call`;
             }
 
-            // Descobre novos colegas que entraram
+            // Descobre novos colegas que entraram e saíram com toasts em tempo real
             if (data.peers && Array.isArray(data.peers)) {
+                const currentPeerIds = new Set(data.peers.map(p => parseInt(p.user_id, 10)));
                 for (const p of data.peers) {
                     const uid = parseInt(p.user_id, 10);
-                    if (uid !== currentUserId && !peerConnections.has(uid)) {
-                        if (currentUserId < uid) {
+                    if (uid !== currentUserId) {
+                        if (!knownPeersMap.has(uid)) {
+                            knownPeersMap.set(uid, p.user_name || 'Colega');
+                            if (inCall) {
+                                window.spawnCallToast(`👋 <strong>${escapeHtml(p.user_name || 'Colega')}</strong> conectou-se à chamada`, 'join');
+                            }
+                        }
+                        if (!peerConnections.has(uid) && currentUserId < uid) {
                             initiatePeerConnection(uid, p.user_name || 'Colega');
                         }
+                    }
+                }
+
+                for (const [kUid, kName] of knownPeersMap.entries()) {
+                    if (!currentPeerIds.has(kUid)) {
+                        knownPeersMap.delete(kUid);
+                        window.spawnCallToast(`👋 <strong>${escapeHtml(kName)}</strong> desconectou-se da chamada`, 'leave');
                     }
                 }
             }
@@ -451,6 +476,7 @@
         // Trata sinais especiais (Reação, Levantar a Mão, Transmissão e Controle Remoto AnyDesk)
         if (type === 'reaction') {
             triggerFloatingReaction(`video-tile-peer-${senderId}`, payload.emoji || '👏');
+            window.spawnCallToast(`${payload.emoji || '👏'} <strong>${escapeHtml(senderName)}</strong> reagiu`, 'reaction');
             return;
         }
 
@@ -461,6 +487,7 @@
             }
             if (payload.raised) {
                 triggerFloatingReaction(`video-tile-peer-${senderId}`, '✋');
+                window.spawnCallToast(`✋ <strong>${escapeHtml(senderName)}</strong> levantou a mão para falar!`, 'hand');
             }
             return;
         }
@@ -469,9 +496,11 @@
             if (payload.sharing) {
                 remotePeerSharingScreenId = senderId;
                 focusedTileId = `video-tile-peer-${senderId}`;
+                window.spawnCallToast(`🖥️ <strong>${escapeHtml(senderName)}</strong> começou a compartilhar a tela!`, 'screen');
             } else {
                 if (remotePeerSharingScreenId === senderId) remotePeerSharingScreenId = null;
                 if (focusedTileId === `video-tile-peer-${senderId}`) focusedTileId = null;
+                window.spawnCallToast(`🖥️ <strong>${escapeHtml(senderName)}</strong> parou de compartilhar a tela.`, 'screen');
             }
             updateGridLayout();
             return;
@@ -569,6 +598,7 @@
             tile = document.createElement('div');
             tile.id = tileId;
             tile.className = 'video-tile video-tile-remote animate-fade-in';
+            tile.setAttribute('ondblclick', `window.fullscreenTile('${tileId}')`);
             tile.innerHTML = `
                 <video autoplay playsinline></video>
                 <div class="tile-avatar-placeholder" style="display:none;">
@@ -578,6 +608,15 @@
                 <div class="tile-hand-badge" id="peer-hand-badge-${remoteUserId}" style="display:none;">✋ Mão Levantada</div>
                 <div class="reactions-container" id="peer-reactions-${remoteUserId}"></div>
                 
+                <div class="tile-top-actions">
+                    <button type="button" class="btn-tile-action btn-tile-fullscreen" title="Tela Cheia do Monitor (F11)" onclick="window.fullscreenTile('${tileId}')">
+                        <span>⤢</span> Tela Cheia
+                    </button>
+                    <button type="button" class="btn-tile-action btn-tile-focus" title="Fixar / Desafixar na grade" onclick="window.toggleTileFocus('${tileId}')">
+                        <span>⛶</span> Fixar
+                    </button>
+                </div>
+
                 <!-- Controle de Volume Individual -->
                 <div class="peer-volume-wrapper" title="Ajustar volume de ${escapeHtml(remoteUserName)}">
                     <button type="button" class="btn-peer-mute" id="peer-mute-btn-${remoteUserId}" onclick="window.togglePeerMute(${remoteUserId})">🔊</button>
@@ -594,7 +633,6 @@
                         <span class="peer-mic-icon">🎙️</span>
                     </span>
                 </div>
-                <button type="button" class="btn-tile-focus" title="Fixar na tela principal" onclick="window.toggleTileFocus('${tileId}')">⛶</button>
             `;
             videoGrid.appendChild(tile);
         }
@@ -748,6 +786,113 @@
             focusedTileId = tileId;
         }
         updateGridLayout();
+    };
+
+    window.fullscreenTile = function (tileId) {
+        const tile = document.getElementById(tileId);
+        if (!tile) return;
+        const video = tile.querySelector('video');
+        const target = video || tile;
+
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } else {
+            const req = target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen || target.msRequestFullscreen;
+            if (req) {
+                req.call(target).catch(() => {
+                    const reqTile = tile.requestFullscreen || tile.webkitRequestFullscreen;
+                    if (reqTile) reqTile.call(tile).catch(()=>{});
+                });
+            }
+        }
+    };
+
+    window.spawnCallToast = function (message, type = 'info') {
+        const container = document.getElementById('call-toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `call-toast-item toast-${type} animate-fade-in`;
+        toast.innerHTML = message;
+        container.appendChild(toast);
+
+        // Som discreto para eventos da call (respeitando mute global)
+        const isMuted = localStorage.getItem('vertice_sound_muted') === 'true';
+        if (!isMuted) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(type === 'hand' ? 660 : type === 'join' ? 587 : 440, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.36);
+                }
+            } catch (e) {}
+        }
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px) scale(0.95)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    };
+
+    window.toggleCallDockMode = function (forceDock = null) {
+        if (!callContainer) return;
+        const isDocked = forceDock !== null ? forceDock : !callContainer.classList.contains('call-in-dock-mode');
+        callContainer.classList.toggle('call-in-dock-mode', isDocked);
+
+        const icon = document.getElementById('dock-toggle-icon');
+        const text = document.getElementById('dock-toggle-text');
+        if (icon && text) {
+            icon.textContent = isDocked ? '⛶' : '📌';
+            text.textContent = isDocked ? 'Grade Completa' : 'Modo Barra (Dock)';
+        }
+
+        const btnGrid = document.getElementById('btn-call-videogrid');
+        if (btnGrid) btnGrid.classList.toggle('active-tool', !isDocked);
+    };
+
+    window.openInCallTool = function (panelId) {
+        window.toggleCallDockMode(true);
+        if (typeof window.switchSalaTab === 'function') {
+            window.switchSalaTab(panelId);
+        }
+
+        const panel = document.getElementById(panelId);
+        if (panel) {
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        document.querySelectorAll('.btn-call-tool').forEach(b => b.classList.remove('active-tool'));
+        if (panelId === 'panel-live-code') {
+            document.getElementById('btn-call-live-code')?.classList.add('active-tool');
+        } else if (panelId === 'panel-whiteboard') {
+            document.getElementById('btn-call-whiteboard')?.classList.add('active-tool');
+        }
+    };
+
+    window.restoreVideoGrid = function () {
+        window.toggleCallDockMode(false);
+        if (typeof window.switchSalaTab === 'function') {
+            window.switchSalaTab('panel-chat');
+        }
+        if (callContainer) {
+            callContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        document.querySelectorAll('.btn-call-tool').forEach(b => b.classList.remove('active-tool'));
+        document.getElementById('btn-call-videogrid')?.classList.add('active-tool');
     };
 
     // ── Indicador de Voz / Fala ──────────────────────────────────────────────
@@ -1291,12 +1436,23 @@
     }
 
     // Handlers de Eventos
-    btnJoinCall.addEventListener('click', joinCall);
+    btnJoinCall.addEventListener('click', () => joinCall());
     btnLeaveCall.addEventListener('click', leaveCall);
 
     window.addEventListener('beforeunload', () => {
-        if (inCall) leaveCall();
+        if (inCall) {
+            sessionStorage.setItem('vertice_call_active_time', String(Date.now()));
+        }
     });
+
+    // Auto-reconnect após F5 se o usuário estava na chamada deste canal
+    const savedCallChannel = sessionStorage.getItem('vertice_active_call_channel');
+    const savedCallTime = parseInt(sessionStorage.getItem('vertice_call_active_time') || '0', 10);
+    if (savedCallChannel && parseInt(savedCallChannel, 10) === channelId && (Date.now() - savedCallTime < 60000)) {
+        setTimeout(() => {
+            if (!inCall) joinCall();
+        }, 800);
+    }
 })();
 
 

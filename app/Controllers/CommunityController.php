@@ -107,4 +107,45 @@ class CommunityController
         header("Location: /comunidade/{$slug}?canal={$channelId}");
         exit;
     }
+
+    public function createCommunity(): void
+    {
+        Auth::requireAuth();
+        $user = Auth::user();
+
+        $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+        $name = trim($data['name'] ?? '');
+        $description = trim($data['description'] ?? '');
+        $icon = trim($data['icon'] ?? '📚');
+        $color = trim($data['color'] ?? '#5b6abf');
+
+        if (empty($name)) {
+            http_response_code(400);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'O nome do servidor é obrigatório.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        // Gera slug básico
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name), '-'));
+        if (empty($slug)) $slug = 'servidor-' . time();
+
+        $comunidade = Category::create($name, $slug, $description, $icon, $color, (int)$user['id']);
+
+        if (!$comunidade) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['error' => 'Falha ao criar o servidor.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Servidor criado com sucesso!',
+            'community' => $comunidade,
+            'redirect' => '/comunidade/' . $comunidade['slug']
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
