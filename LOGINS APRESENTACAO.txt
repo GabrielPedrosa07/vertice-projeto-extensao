@@ -1,0 +1,16 @@
+1. Lista de Logins para a Demonstração
+
+Senha padrão de TODAS as contas: 123456
+Link no seu notebook: http://localhost:8000/login
+
+Conta	E-mail	Senha	Uso ideal na Apresentação
+
+1. Gabriel (Principal)	gabriel@fasm.edu.br	123456	Aba normal do navegador (Apresentador 1)
+
+2. Iuri Schelb	iuri@fasm.edu.br	123456	Janela Anônima ou outro notebook (Para testar Call / Chat ao vivo)
+
+3. João (Equipe)	joao@fasm.edu.br	123456	Terceiro acesso ou demonstração de amigos
+
+4. Gabriel (Outlook)	gabrielmodestudo@outlook.com	123456	Conta reserva
+
+5. Aluno FASM	aluno@fasm.edu.br	123456	Conta de estudante comum

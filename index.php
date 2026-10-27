@@ -365,12 +365,12 @@ if ($method === 'GET' && $uri === '/privacidade') {
 // ----------------------------------------------------
 // Rotas de Autenticação
 // ----------------------------------------------------
-if ($method === 'GET' && $uri === '/entrar') {
+if ($method === 'GET' && ($uri === '/entrar' || $uri === '/login')) {
     (new AuthController())->showLogin();
     exit;
 }
 
-if ($method === 'POST' && $uri === '/entrar') {
+if ($method === 'POST' && ($uri === '/entrar' || $uri === '/login')) {
     (new AuthController())->login();
     exit;
 }
